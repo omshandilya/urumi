@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-wordpress-setup
+  namespace: {{ .Values.namespace }}
+data:
+  wordpress-setup.sh: |
+    #!/bin/bash
+    set -e
+    
+    echo "WordPress setup script starting..."
+    
+    # Wait for WordPress files to exist (from main container)
+    MAX_ATTEMPTS=30
+    ATTEMPT=0
+    while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+      if [ -f /var/www/html/wp-config.php ]; then
+        echo "WordPress files found!"
+        break
+      fi
+      ATTEMPT=$((ATTEMPT + 1))
+      echo "Waiting for WordPress files... attempt $ATTEMPT/$MAX_ATTEMPTS"
+      sleep 2
+    done
+    
+    if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
+      echo "WARNING: WordPress files not found, skipping WordPress setup"
+      exit 0
+    fi
+    
+    # Check if WordPress is installed in the database
+    echo "Checking WordPress installation..."
+    if ! wp core is-installed --allow-root 2>/dev/null; then
+      echo "Installing WordPress..."
+      wp core install \
+        --url="http://{{ .Values.store.domain }}" \
+        --title="{{ .Release.Name }} Store" \
+        --admin_user="{{ .Values.wordpress.admin.username }}" \
+        --admin_password="{{ .Values.wordpress.admin.password }}" \
+        --admin_email="{{ .Values.wordpress.admin.email }}" \
+        --skip-email \
+        --allow-root
+      echo "WordPress installed successfully!"
+    else
+      echo "WordPress already installed."
+    fi

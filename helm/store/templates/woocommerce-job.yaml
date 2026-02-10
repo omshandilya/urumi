@@ -1,0 +1,84 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-woocommerce-setup
+  namespace: {{ .Values.namespace }}
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: setup
+        image: wordpress:cli-php8.2
+        command: ['/bin/bash', '-c']
+        args:
+        - |
+          set -e
+          cd /var/www/html
+          
+          # Wait for WordPress to be ready
+          until curl -f http://{{ .Release.Name }}-wordpress/wp-login.php; do
+            echo "Waiting for WordPress..."
+            sleep 10
+          done
+          
+          # Install WordPress
+          wp core install \
+            --url="http://{{ .Values.store.domain }}" \
+            --title="{{ .Values.woocommerce.store.name }}" \
+            --admin_user="{{ .Values.wordpress.admin.username }}" \
+            --admin_password="{{ .Values.wordpress.admin.password }}" \
+            --admin_email="{{ .Values.wordpress.admin.email }}" \
+            --allow-root
+          
+          # Install WooCommerce
+          wp plugin install woocommerce --activate --allow-root
+          
+          # Configure WooCommerce
+          wp option update woocommerce_store_address "{{ .Values.woocommerce.store.address }}" --allow-root
+          wp option update woocommerce_store_city "{{ .Values.woocommerce.store.city }}" --allow-root
+          wp option update woocommerce_default_country "{{ .Values.woocommerce.store.country }}" --allow-root
+          wp option update woocommerce_currency "{{ .Values.woocommerce.currency }}" --allow-root
+          
+          # Enable payments
+          wp option update woocommerce_cod_settings '{"enabled":"yes","title":"Cash on Delivery"}' --format=json --allow-root
+          
+          # Create sample product
+          wp wc product create \
+            --name="{{ .Values.woocommerce.sampleProduct.name }}" \
+            --type=simple \
+            --regular_price="{{ .Values.woocommerce.sampleProduct.price }}" \
+            --description="{{ .Values.woocommerce.sampleProduct.description }}" \
+            --manage_stock=true \
+            --stock_quantity="{{ .Values.woocommerce.sampleProduct.stock }}" \
+            --status=publish \
+            --user=admin \
+            --allow-root
+          
+          # Complete setup
+          wp option update woocommerce_onboarding_profile '{"completed":true}' --format=json --allow-root
+          wp option update woocommerce_task_list_complete "yes" --allow-root
+          
+          echo "WooCommerce setup complete!"
+        env:
+        - name: WORDPRESS_DB_HOST
+          value: {{ .Release.Name }}-mysql:3306
+        - name: WORDPRESS_DB_NAME
+          value: {{ .Values.mysql.database }}
+        - name: WORDPRESS_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-mysql-secret
+              key: username
+        - name: WORDPRESS_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-mysql-secret
+              key: password
+        volumeMounts:
+        - name: wordpress-storage
+          mountPath: /var/www/html
+      volumes:
+      - name: wordpress-storage
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-wordpress-pvc

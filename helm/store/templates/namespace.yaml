@@ -1,0 +1,6 @@
+{{- if not (has .Values.namespace (list "default" "kube-system" "kube-public" "kube-node-lease")) }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.namespace }}
+{{- end }}

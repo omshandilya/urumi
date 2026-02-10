@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wordpress-init-setup
+  namespace: mystore
+spec:
+  template:
+    spec:
+      serviceAccountName: default
+      containers:
+      - name: wordpress-setup
+        image: wordpress:cli-php8.2
+        command: ['/bin/sh']
+        args:
+        - -c
+        - |
+          cd /var/www/html
+          if ! wp core is-installed --allow-root 2>/dev/null; then
+            echo "Installing WordPress..."
+            wp core install \
+              --url=http://example.com \
+              --title="Urumi Store" \
+              --admin_user=admin \
+              --admin_password=changeme123 \
+              --admin_email=admin@example.com \
+              --skip-email \
+              --allow-root
+            echo "WordPress installed!"
+          else
+            echo "WordPress already installed"
+          fi
+        env:
+        - name: WORDPRESS_DB_HOST
+          value: mystore-mysql:3306
+        - name: WORDPRESS_DB_NAME
+          value: wordpress
+        - name: WORDPRESS_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: mystore-mysql-secret
+              key: username
+        - name: WORDPRESS_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mystore-mysql-secret
+              key: password
+        volumeMounts:
+        - name: wordpress-storage
+          mountPath: /var/www/html
+      volumes:
+      - name: wordpress-storage
+        persistentVolumeClaim:
+          claimName: mystore-wordpress-pvc
+      restartPolicy: Never
+  backoffLimit: 3

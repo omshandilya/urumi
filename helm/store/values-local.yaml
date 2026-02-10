@@ -1,0 +1,62 @@
+namespace: store-local
+
+store:
+  domain: store.local
+
+wordpress:
+  image:
+    pullPolicy: IfNotPresent
+  
+  replicas: 1
+  
+  storage:
+    size: 1Gi
+    storageClass: local-path
+  
+  admin:
+    username: admin
+    email: admin@store.local
+    password: localadmin123
+
+woocommerce:
+  store:
+    address: "456 Dev Street"
+    city: "San Francisco"
+    country: "US:CA"
+    postcode: "94102"
+  
+  currency: USD
+  
+  sampleProduct:
+    name: "Test Product"
+    description: "Local development test product."
+    shortDescription: "Test product."
+    price: "19.99"
+    stock: 50
+
+mysql:
+  database: wordpress_local
+  
+  credentials:
+    username: wpuser
+    password: localpass123
+    rootPassword: rootlocalpass123
+  
+  storage:
+    size: 5Gi
+    storageClass: local-path
+
+service:
+  type: NodePort
+  port: 80
+
+ingress:
+  enabled: false
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "250m"

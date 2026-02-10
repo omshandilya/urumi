@@ -1,0 +1,179 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-woocommerce-setup
+  namespace: {{ .Values.namespace }}
+data:
+  setup-woocommerce.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Increase PHP memory limit for WP-CLI
+    export WP_CLI_PHP_ARGS="-d memory_limit=512M"
+    
+    cd /var/www/html
+    
+    SETUP_FLAG="/var/www/html/.woocommerce-setup-complete"
+    
+    # Skip if already setup
+    if [ -f "$SETUP_FLAG" ]; then
+      echo "WooCommerce already configured. Skipping setup."
+      exit 0
+    fi
+    
+    echo "Database is ready! Setting up WordPress directory..."
+    
+    # Wait for WordPress files to be available (created by main container)
+    echo "Waiting for WordPress files to be ready..."
+    until [ -f "/var/www/html/wp-config-sample.php" ]; do
+      echo "WordPress files not ready, waiting..."
+      sleep 5
+    done
+    
+    # Create wp-config.php if it doesn't exist
+    if [ ! -f "/var/www/html/wp-config.php" ]; then
+      echo "Creating wp-config.php..."
+      wp config create \
+        --dbname="$WORDPRESS_DB_NAME" \
+        --dbuser="$WORDPRESS_DB_USER" \
+        --dbpass="$WORDPRESS_DB_PASSWORD" \
+        --dbhost="$WORDPRESS_DB_HOST" \
+        --allow-root
+    fi
+    
+    echo "Waiting for database connection..."
+    until wp db check --allow-root 2>/dev/null; do
+      echo "Database not ready, waiting..."
+      sleep 5
+    done
+    
+    # Install WordPress if not already installed
+    if ! wp core is-installed --allow-root 2>/dev/null; then
+      echo "Installing WordPress..."
+      wp core install \
+        --url="$WORDPRESS_URL" \
+        --title="{{ .Values.woocommerce.store.name | default "My WooCommerce Store" }}" \
+        --admin_user="$WORDPRESS_ADMIN_USER" \
+        --admin_password="$WORDPRESS_ADMIN_PASSWORD" \
+        --admin_email="$WORDPRESS_ADMIN_EMAIL" \
+        --allow-root
+      
+      echo "WordPress installed successfully!"
+    fi
+    
+    echo "Installing and activating WooCommerce plugin..."
+    wp plugin install woocommerce --activate --allow-root
+    
+    echo "Configuring WooCommerce store settings..."
+    wp option update woocommerce_store_address "{{ .Values.woocommerce.store.address }}" --allow-root
+    wp option update woocommerce_store_city "{{ .Values.woocommerce.store.city }}" --allow-root
+    wp option update woocommerce_default_country "{{ .Values.woocommerce.store.country }}" --allow-root
+    wp option update woocommerce_store_postcode "{{ .Values.woocommerce.store.postcode }}" --allow-root
+    wp option update woocommerce_currency "{{ .Values.woocommerce.currency }}" --allow-root
+    
+    echo "Configuring payment methods..."
+    # Enable Cash on Delivery
+    wp option update woocommerce_cod_settings '{"enabled":"yes","title":"Cash on Delivery","description":"Pay with cash upon delivery.","instructions":"Pay with cash when your order is delivered."}' --format=json --allow-root
+    
+    # Enable Bank Transfer
+    wp option update woocommerce_bacs_settings '{"enabled":"yes","title":"Direct Bank Transfer","description":"Make your payment directly into our bank account."}' --format=json --allow-root
+    
+    # Enable Check payments
+    wp option update woocommerce_cheque_settings '{"enabled":"yes","title":"Check payments","description":"Please send a check to our store address."}' --format=json --allow-root
+    
+    echo "Configuring shipping..."
+    # Enable flat rate shipping
+    wp option update woocommerce_flat_rate_settings '{"enabled":"yes","title":"Flat rate","cost":"10"}' --format=json --allow-root
+    
+    # Enable free shipping
+    wp option update woocommerce_free_shipping_settings '{"enabled":"yes","title":"Free shipping","min_amount":"50"}' --format=json --allow-root
+    
+    echo "Creating sample products..."
+    
+    # Create main sample product
+    PRODUCT_ID=$(wp wc product create \
+      --name="{{ .Values.woocommerce.sampleProduct.name }}" \
+      --type=simple \
+      --regular_price="{{ .Values.woocommerce.sampleProduct.price }}" \
+      --description="{{ .Values.woocommerce.sampleProduct.description }}" \
+      --short_description="{{ .Values.woocommerce.sampleProduct.shortDescription }}" \
+      --manage_stock=true \
+      --stock_quantity="{{ .Values.woocommerce.sampleProduct.stock }}" \
+      --status=publish \
+      --user=admin \
+      --porcelain \
+      --allow-root)
+    
+    echo "Sample product created with ID: $PRODUCT_ID"
+    
+    # Create additional sample products
+    wp wc product create \
+      --name="Premium Product" \
+      --type=simple \
+      --regular_price="99.99" \
+      --description="A premium product with advanced features." \
+      --short_description="Premium quality product." \
+      --manage_stock=true \
+      --stock_quantity=50 \
+      --status=publish \
+      --user=admin \
+      --allow-root
+    
+    wp wc product create \
+      --name="Budget Product" \
+      --type=simple \
+      --regular_price="9.99" \
+      --description="An affordable product for budget-conscious customers." \
+      --short_description="Great value for money." \
+      --manage_stock=true \
+      --stock_quantity=200 \
+      --status=publish \
+      --user=admin \
+      --allow-root
+    
+    echo "Configuring WooCommerce pages..."
+    # Create WooCommerce pages
+    wp wc tool run install_pages --user=admin --allow-root
+    
+    echo "Setting up tax configuration..."
+    wp option update woocommerce_calc_taxes "yes" --allow-root
+    wp option update woocommerce_prices_include_tax "no" --allow-root
+    
+    echo "Completing WooCommerce onboarding..."
+    wp option update woocommerce_onboarding_profile '{"completed":true,"industry":[{"slug":"other"}],"product_types":["physical"],"product_count":"1-10","selling_venues":"no","revenue":"none","other_platform":"none","business_extensions":[],"theme":"storefront"}' --format=json --allow-root
+    wp option update woocommerce_task_list_complete "yes" --allow-root
+    wp option update woocommerce_task_list_hidden "yes" --allow-root
+    wp option update woocommerce_extended_task_list_complete "yes" --allow-root
+    wp option update woocommerce_extended_task_list_hidden "yes" --allow-root
+    
+    echo "Installing Storefront theme..."
+    wp theme install storefront --activate --allow-root
+    
+    echo "Setting up sample menu..."
+    # Create a simple navigation menu
+    MENU_ID=$(wp menu create "Main Menu" --porcelain --allow-root)
+    wp menu item add-post $MENU_ID $(wp post list --post_type=page --name=shop --field=ID --allow-root) --allow-root
+    wp menu item add-post $MENU_ID $(wp post list --post_type=page --name=cart --field=ID --allow-root) --allow-root
+    wp menu item add-post $MENU_ID $(wp post list --post_type=page --name=checkout --field=ID --allow-root) --allow-root
+    wp menu item add-post $MENU_ID $(wp post list --post_type=page --name=my-account --field=ID --allow-root) --allow-root
+    wp menu location assign $MENU_ID primary --allow-root
+    
+    echo "Configuring WordPress settings..."
+    wp option update blogdescription "Your WooCommerce Store" --allow-root
+    wp option update start_of_week 1 --allow-root
+    wp option update default_pingback_flag 0 --allow-root
+    wp option update default_ping_status 0 --allow-root
+    wp option update default_comment_status 0 --allow-root
+    
+    # Set homepage to shop page
+    SHOP_PAGE_ID=$(wp post list --post_type=page --name=shop --field=ID --allow-root)
+    wp option update show_on_front page --allow-root
+    wp option update page_on_front $SHOP_PAGE_ID --allow-root
+    
+    echo "WooCommerce store setup complete!"
+    echo "Store URL: $WORDPRESS_URL"
+    echo "Admin URL: $WORDPRESS_URL/wp-admin"
+    echo "Admin User: $WORDPRESS_ADMIN_USER"
+    echo "Admin Email: $WORDPRESS_ADMIN_EMAIL"
+    
+    touch "$SETUP_FLAG"

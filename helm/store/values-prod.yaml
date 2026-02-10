@@ -1,0 +1,62 @@
+namespace: store-prod
+
+store:
+  domain: store.example.com
+
+wordpress:
+  image:
+    pullPolicy: IfNotPresent
+  
+  replicas: 2
+  
+  storage:
+    size: 20Gi
+    storageClass: fast-ssd
+  
+  admin:
+    username: admin
+    email: admin@example.com
+    password: <CHANGE_IN_PRODUCTION>
+
+woocommerce:
+  store:
+    address: "789 Business Ave"
+    city: "Los Angeles"
+    country: "US:CA"
+    postcode: "90001"
+  
+  currency: USD
+  
+  sampleProduct:
+    name: "Premium Product"
+    description: "High-quality product for your store."
+    shortDescription: "Premium quality product."
+    price: "99.99"
+    stock: 200
+
+mysql:
+  database: wordpress_prod
+  
+  credentials:
+    username: wpuser_prod
+    password: <CHANGE_IN_PRODUCTION>
+    rootPassword: <CHANGE_IN_PRODUCTION>
+  
+  storage:
+    size: 50Gi
+    storageClass: fast-ssd
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "500m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"

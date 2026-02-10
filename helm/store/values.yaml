@@ -1,0 +1,63 @@
+namespace: mystore
+
+store:
+  domain: example.com
+
+wordpress:
+  image:
+    pullPolicy: IfNotPresent
+  
+  replicas: 1
+  
+  storage:
+    size: 5Gi
+    storageClass: local-path
+  
+  admin:
+    username: admin
+    email: admin@example.com
+    password: changeme123
+
+woocommerce:
+  store:
+    name: "My WooCommerce Store"
+    address: "123 Main Street"
+    city: "New York"
+    country: "US:NY"
+    postcode: "10001"
+  
+  currency: USD
+  
+  sampleProduct:
+    name: "Sample Product"
+    description: "This is a sample product created during store setup."
+    shortDescription: "Sample product for testing."
+    price: "29.99"
+    stock: 100
+
+mysql:
+  database: wordpress
+  
+  credentials:
+    username: wpuser
+    password: changeme
+    rootPassword: rootchangeme
+  
+  storage:
+    size: 10Gi
+    storageClass: local-path
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
