@@ -1,7 +1,32 @@
+# Dependencies
 node_modules/
-dist/
+package-lock.json
+
+# Build outputs
 build/
+dist/
 *.log
+
+# Environment
 .env
-.DS_Store
+.env.local
+.env.production
+
+# Data
+api/data/stores.json
+api/data/values-*.yaml
+api/logs/
+
+# IDE
+.vscode/
+.idea/
 *.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kubernetes
+kubeconfig
+*.kubeconfig

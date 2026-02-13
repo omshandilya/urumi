@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-woocommerce-init
+  namespace: {{ .Values.namespace }}
+data:
+  init.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Wait for WordPress to be accessible
+    until curl -f http://{{ .Release.Name }}-wordpress/wp-admin/install.php 2>/dev/null; do
+      echo "Waiting for WordPress..."
+      sleep 5
+    done
+    
+    # Check if already installed
+    if curl -s http://{{ .Release.Name }}-wordpress/ | grep -q "wp-login"; then
+      echo "WordPress already installed, skipping..."
+      exit 0
+    fi
+    
+    # Install WordPress via HTTP POST
+    curl -X POST http://{{ .Release.Name }}-wordpress/wp-admin/install.php \
+      --data-urlencode "weblog_title={{ .Values.woocommerce.store.name }}" \
+      --data-urlencode "user_name={{ .Values.wordpress.admin.username }}" \
+      --data-urlencode "admin_password={{ .Values.wordpress.admin.password }}" \
+      --data-urlencode "admin_password2={{ .Values.wordpress.admin.password }}" \
+      --data-urlencode "admin_email={{ .Values.wordpress.admin.email }}" \
+      --data-urlencode "Submit=Install WordPress" \
+      --data-urlencode "language="
+    
+    echo "WordPress installation complete!"

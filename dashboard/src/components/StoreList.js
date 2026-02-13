@@ -35,7 +35,6 @@ const StoreList = ({ stores, onDelete, disabled }) => {
               <th>Store ID</th>
               <th>Status</th>
               <th>Domain</th>
-              <th>Credentials</th>
               <th>Created</th>
               <th>Actions</th>
             </tr>
@@ -53,18 +52,6 @@ const StoreList = ({ stores, onDelete, disabled }) => {
                   ) : (
                     store.domain
                   )}
-                </td>
-                <td>
-                  <div style={{fontSize: '12px'}}>
-                    <div><strong>User:</strong> admin</div>
-                    <div><strong>Pass:</strong> admin123</div>
-                    <button 
-                      onClick={() => copyToClipboard('Username: admin\nPassword: admin123')}
-                      style={{fontSize: '10px', padding: '2px 6px', marginTop: '4px'}}
-                    >
-                      Copy
-                    </button>
-                  </div>
                 </td>
                 <td>{formatDate(store.createdAt)}</td>
                 <td>
