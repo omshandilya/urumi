@@ -1,1 +1,0 @@
-You are allowed to run the commands in and out of the workspace after asking me.
