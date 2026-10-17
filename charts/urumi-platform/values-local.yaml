@@ -1,0 +1,4 @@
+wordpress:
+  host: store.localhost
+images:
+  woocommerceMcp: urumi/woocommerce-mcp:dev

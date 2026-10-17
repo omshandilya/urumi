@@ -1,0 +1,4 @@
+wordpress:
+  host: store.example.com # replace with your VPS domain
+images:
+  woocommerceMcp: ghcr.io/your-github-user/urumi-woocommerce-mcp:0.1.0

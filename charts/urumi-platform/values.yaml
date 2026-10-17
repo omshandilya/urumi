@@ -1,0 +1,32 @@
+namespace: urumi
+images:
+  wordpress: wordpress:6.7-apache
+  mariadb: mariadb:11.7
+  woocommerceMcp: urumi/woocommerce-mcp:dev
+wordpress:
+  host: store.localhost
+  storage: 5Gi
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+mariadb:
+  storage: 5Gi
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+woocommerceMcp:
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+secrets:
+  mariadbRootPassword: ""
+  mariadbPassword: ""
+  wordpressAdminPassword: ""
+  wooConsumerKey: ""
+  wooConsumerSecret: ""
+  mcpSharedToken: ""
+bootstrap:
+  adminUser: admin
+  adminEmail: admin@example.test
+  siteTitle: Urumi Store
+  currency: INR

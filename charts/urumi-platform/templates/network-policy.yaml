@@ -1,0 +1,9 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: {{ .Release.Name }}-mcp-internal, namespace: {{ .Values.namespace }} }
+spec:
+  podSelector: { matchLabels: { app: woocommerce-mcp } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: gateway } } # Phase 4 gateway

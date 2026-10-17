@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+values-secrets*.yaml
+!config/values-secrets.example.yaml
+*.log
+.DS_Store
+

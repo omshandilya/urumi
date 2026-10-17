@@ -1,0 +1,12 @@
+{
+  "name": "urumi-mcp-gateway",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=@urumi/woocommerce-mcp",
+    "dev:mcp": "npm run dev --workspace=@urumi/woocommerce-mcp",
+    "test": "npm run test --workspace=@urumi/woocommerce-mcp"
+  }
+}
