@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata: { name: {{ .Release.Name }}-dashboard, namespace: {{ .Values.namespace }} }
+spec:
+  selector: { app: dashboard }
+  ports: [{ port: 8080, targetPort: http }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: {{ .Release.Name }}-dashboard, namespace: {{ .Values.namespace }} }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: dashboard } }
+  template:
+    metadata: { labels: { app: dashboard } }
+    spec:
+      containers:
+        - name: dashboard
+          image: {{ .Values.images.dashboard }}
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: http, containerPort: 8080 }]
+          readinessProbe: { httpGet: { path: /, port: http }, initialDelaySeconds: 3, periodSeconds: 5 }
+          livenessProbe: { httpGet: { path: /, port: http }, initialDelaySeconds: 15, periodSeconds: 10 }
+          resources: {{- toYaml .Values.dashboard.resources | nindent 12 }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: { name: {{ .Release.Name }}-dashboard, namespace: {{ .Values.namespace }} }
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: {{ .Values.dashboard.host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: {{ .Release.Name }}-gateway, port: { number: 3000 } } }
+          - path: /mcp
+            pathType: Prefix
+            backend: { service: { name: {{ .Release.Name }}-gateway, port: { number: 3000 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: {{ .Release.Name }}-dashboard, port: { number: 8080 } } }

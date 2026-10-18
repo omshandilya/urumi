@@ -5,6 +5,7 @@ images:
   woocommerceMcp: urumi/woocommerce-mcp:dev
   gateway: urumi/gateway:dev
   sampleMcp: urumi/sample-mcp:dev
+  dashboard: urumi/dashboard:dev
 wordpress:
   host: store.localhost
   storage: 5Gi
@@ -32,6 +33,11 @@ sampleMcp:
   resources:
     requests: { cpu: 50m, memory: 64Mi }
     limits: { cpu: 250m, memory: 128Mi }
+dashboard:
+  host: dashboard.localhost
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 250m, memory: 192Mi }
 secrets:
   mariadbRootPassword: ""
   mariadbPassword: ""

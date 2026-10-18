@@ -1,6 +1,6 @@
 # Urumi MCP Gateway on Kubernetes
 
-This repository currently implements Phases 1–5: a local Kind cluster, persistent WooCommerce store, custom Streamable HTTP WooCommerce MCP server, and a team gateway with users, hashed/revocable API keys, upstream management, and audit logs. The dashboard and chat agent are Phase 6–7 work.
+This repository currently implements Phases 1–6: a local Kind cluster, persistent WooCommerce store, custom Streamable HTTP WooCommerce MCP server, a team gateway, and an admin/member React dashboard. The chat agent is Phase 7 work.
 
 ## Prerequisites
 
@@ -67,6 +67,10 @@ For a quick API-key creation example, replace `ADMIN_KEY` locally:
 ```powershell
 Invoke-RestMethod -Method Post -Uri http://gateway.localhost/api/keys -Headers @{ Authorization = "Bearer ADMIN_KEY"; 'Content-Type' = 'application/json' } -Body '{"label":"my-external-client-key"}'
 ```
+
+## Dashboard (Phase 6)
+
+Open [http://dashboard.localhost](http://dashboard.localhost) and paste an individual gateway API key. The key stays in browser session storage only. Admins can manage upstreams, members, every key, and audit logs. Members can view enabled upstreams/tools and issue or revoke their own keys.
 
 ## Validation
 
