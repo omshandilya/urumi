@@ -18,6 +18,9 @@ woocommerceMcp:
   resources:
     requests: { cpu: 100m, memory: 128Mi }
     limits: { cpu: 500m, memory: 256Mi }
+woocommerce:
+  # Pinned because newer WooCommerce releases can require a newer WordPress core.
+  pluginVersion: "9.4.3"
 secrets:
   mariadbRootPassword: ""
   mariadbPassword: ""

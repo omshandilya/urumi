@@ -9,12 +9,14 @@ Install and start Docker Desktop in **Linux containers** mode. Install Kind; `ku
 ```powershell
 winget install Kubernetes.kind
 docker desktop start
-kind create cluster --name urumi
+kind create cluster --name urumi --config .\config\kind-local.yaml
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
 kubectl wait --namespace ingress-nginx --for=condition=Ready pod --selector=app.kubernetes.io/component=controller --timeout=180s
 ```
 
-`store.localhost` resolves to `127.0.0.1` on modern Windows. The Kind ingress controller maps it to the store; no hosts-file edit is needed.
+`store.localhost` resolves to `127.0.0.1` on modern Windows. `config/kind-local.yaml` maps host ports 80/443 into Kind so the ingress controller can route it to the store; no hosts-file edit is needed.
+
+If you created the cluster before this configuration was added, recreate the local Kind cluster with the command above. This removes only the local cluster and its local persistent volumes.
 
 ## Build and deploy
 

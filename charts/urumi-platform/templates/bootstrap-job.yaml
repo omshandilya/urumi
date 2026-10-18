@@ -12,6 +12,9 @@ spec:
       containers:
         - name: bootstrap
           image: wordpress:cli-2.11-php8.3
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
           command: ["sh", "-ec"]
           args:
             - |
@@ -19,10 +22,15 @@ spec:
                 wp core install --path=/var/www/html --url="http://{{ .Values.wordpress.host }}" --title="{{ .Values.bootstrap.siteTitle }}" --admin_user="{{ .Values.bootstrap.adminUser }}" --admin_password="$WORDPRESS_ADMIN_PASSWORD" --admin_email="{{ .Values.bootstrap.adminEmail }}" --skip-email --allow-root || true
                 sleep 5
               done
-              wp plugin install woocommerce --activate --path=/var/www/html --allow-root
+              wp plugin install woocommerce --version="{{ .Values.woocommerce.pluginVersion }}" --force --activate --path=/var/www/html --allow-root
               wp option update woocommerce_currency "{{ .Values.bootstrap.currency }}" --path=/var/www/html --allow-root
               wp eval '$key=getenv("WOO_KEY"); $secret=getenv("WOO_SECRET"); global $wpdb; $table=$wpdb->prefix."woocommerce_api_keys"; if (!$wpdb->get_var($wpdb->prepare("SELECT key_id FROM $table WHERE consumer_key=%s", wc_api_hash($key)))) { $wpdb->insert($table,["user_id"=>1,"description"=>"Urumi MCP","permissions"=>"read_write","consumer_key"=>wc_api_hash($key),"consumer_secret"=>$secret,"truncated_key"=>substr($key,-7)]); }' --path=/var/www/html --allow-root
           env:
+            - { name: WORDPRESS_DB_HOST, value: {{ .Release.Name }}-mariadb }
+            - { name: WORDPRESS_DB_NAME, value: wordpress }
+            - { name: WORDPRESS_DB_USER, value: wordpress }
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Release.Name }}-credentials, key: mariadb-password } }
             - name: WORDPRESS_ADMIN_PASSWORD
               valueFrom: { secretKeyRef: { name: {{ .Release.Name }}-credentials, key: wordpress-admin-password } }
             - name: WOO_KEY
