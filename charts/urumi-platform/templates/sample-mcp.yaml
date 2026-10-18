@@ -1,0 +1,28 @@
+{{- range $name := list "shipping" "calculator" }}
+apiVersion: v1
+kind: Service
+metadata: { name: {{ $.Release.Name }}-{{ $name }}-mcp, namespace: {{ $.Values.namespace }} }
+spec:
+  selector: { app: {{ $name }}-mcp }
+  ports: [{ port: 3000, targetPort: http }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: {{ $.Release.Name }}-{{ $name }}-mcp, namespace: {{ $.Values.namespace }} }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: {{ $name }}-mcp } }
+  template:
+    metadata: { labels: { app: {{ $name }}-mcp } }
+    spec:
+      containers:
+        - name: {{ $name }}-mcp
+          image: {{ $.Values.images.sampleMcp }}
+          imagePullPolicy: IfNotPresent
+          env: [{ name: MODE, value: {{ if eq $name "shipping" }}catalog{{ else }}calculator{{ end }} }]
+          ports: [{ name: http, containerPort: 3000 }]
+          readinessProbe: { httpGet: { path: /healthz, port: http }, initialDelaySeconds: 3, periodSeconds: 5 }
+          livenessProbe: { httpGet: { path: /healthz, port: http }, initialDelaySeconds: 15, periodSeconds: 10 }
+          resources: {{- toYaml $.Values.sampleMcp.resources | nindent 12 }}
+---
+{{- end }}

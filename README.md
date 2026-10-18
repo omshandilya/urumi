@@ -1,6 +1,6 @@
 # Urumi MCP Gateway on Kubernetes
 
-This repository currently implements Phases 1–3: a local Kind cluster, a persistent WooCommerce store deployed with Helm, and a custom Streamable HTTP MCP server. The gateway, dashboard, users, and chat agent are intentionally Phase 4+ work.
+This repository currently implements Phases 1–5: a local Kind cluster, persistent WooCommerce store, custom Streamable HTTP WooCommerce MCP server, and a team gateway with users, hashed/revocable API keys, upstream management, and audit logs. The dashboard and chat agent are Phase 6–7 work.
 
 ## Prerequisites
 
@@ -47,6 +47,26 @@ kubectl get pods -n urumi -w
 Visit [http://store.localhost](http://store.localhost), sign in at `/wp-admin` with the configured admin credentials, and create a product or use the storefront checkout. The bootstrap Job installs and activates WooCommerce and creates the REST key supplied in your private values file.
 
 The custom MCP endpoint is internal only: `http://urumi-woocommerce-mcp.urumi.svc.cluster.local:3000/mcp`. It requires `Authorization: Bearer <mcpSharedToken>`. Phase 4 will make this reachable only through the gateway—not from an external MCP client.
+
+## Gateway (Phases 4–5)
+
+The only public MCP endpoint is [http://gateway.localhost/mcp](http://gateway.localhost/mcp). Authenticate with `Authorization: Bearer <gateway API key>` and accept both `application/json` and `text/event-stream`.
+
+The gateway registers three upstream servers: WooCommerce, shipping reference, and tax calculator. Tool names are collision-safe: `<server-slug>__<tool-name>`, for example `woocommerce__list_orders` and `calculator__calculate_total`. Upstream URLs and their credentials remain server-side; the management API never returns credentials.
+
+Get the bootstrap admin key locally (do not share or commit it):
+
+```powershell
+[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String((kubectl get secret urumi-credentials -n urumi -o jsonpath='{.data.gateway-admin-key}')))
+```
+
+Use it to call the protected management API at `http://gateway.localhost/api/`. Admin-only endpoints are `GET/POST/PATCH/DELETE /api/servers`, `POST /api/servers/:slug/disable`, `GET/POST /api/members`, and `GET /api/audit-logs`. Every user can list/create their own keys at `GET/POST /api/keys`; admins can create or revoke any member's key. `DELETE /api/keys/:id` revokes a key immediately.
+
+For a quick API-key creation example, replace `ADMIN_KEY` locally:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://gateway.localhost/api/keys -Headers @{ Authorization = "Bearer ADMIN_KEY"; 'Content-Type' = 'application/json' } -Body '{"label":"my-external-client-key"}'
+```
 
 ## Validation
 

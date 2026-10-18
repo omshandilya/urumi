@@ -5,8 +5,8 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=@urumi/woocommerce-mcp",
+    "build": "npm run build --workspaces --if-present",
     "dev:mcp": "npm run dev --workspace=@urumi/woocommerce-mcp",
-    "test": "npm run test --workspace=@urumi/woocommerce-mcp"
+    "test": "npm run test --workspaces --if-present"
   }
 }

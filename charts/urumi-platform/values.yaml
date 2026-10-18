@@ -3,6 +3,8 @@ images:
   wordpress: wordpress:6.7-apache
   mariadb: mariadb:11.7
   woocommerceMcp: urumi/woocommerce-mcp:dev
+  gateway: urumi/gateway:dev
+  sampleMcp: urumi/sample-mcp:dev
 wordpress:
   host: store.localhost
   storage: 5Gi
@@ -21,6 +23,15 @@ woocommerceMcp:
 woocommerce:
   # Pinned because newer WooCommerce releases can require a newer WordPress core.
   pluginVersion: "9.4.3"
+gateway:
+  host: gateway.localhost
+  resources:
+    requests: { cpu: 150m, memory: 192Mi }
+    limits: { cpu: 750m, memory: 512Mi }
+sampleMcp:
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 250m, memory: 128Mi }
 secrets:
   mariadbRootPassword: ""
   mariadbPassword: ""
@@ -28,6 +39,9 @@ secrets:
   wooConsumerKey: ""
   wooConsumerSecret: ""
   mcpSharedToken: ""
+  gatewayAdminKey: ""
+  gatewayKeyPepper: ""
+  gatewayCredentialEncryptionKey: ""
 bootstrap:
   adminUser: admin
   adminEmail: admin@example.test

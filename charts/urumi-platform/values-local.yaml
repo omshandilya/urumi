@@ -1,4 +1,6 @@
 wordpress:
   host: store.localhost
+gateway:
+  host: gateway.localhost
 images:
   woocommerceMcp: urumi/woocommerce-mcp:dev
