@@ -1,6 +1,6 @@
 # Urumi MCP Gateway on Kubernetes
 
-This repository currently implements Phases 1–6: a local Kind cluster, persistent WooCommerce store, custom Streamable HTTP WooCommerce MCP server, a team gateway, and an admin/member React dashboard. The chat agent is Phase 7 work.
+This repository implements Phases 1–8: a local Kind cluster, persistent WooCommerce store, custom Streamable HTTP WooCommerce MCP server, a team gateway, an admin/member React dashboard, a tool-using chat agent, and end-to-end access/failure checks.
 
 ## Prerequisites
 
@@ -37,6 +37,18 @@ node -e "console.log('ck_'+require('crypto').randomBytes(24).toString('hex'))"
 node -e "console.log('cs_'+require('crypto').randomBytes(24).toString('hex'))"
 ```
 
+For Phase 7, also configure an OpenAI-compatible chat provider in that private file and `values-local.yaml` (or a private values override):
+
+```yaml
+secrets:
+  llmApiKey: "your-provider-key"
+llm:
+  baseUrl: "https://api.openai.com/v1"
+  model: "your-tool-capable-model"
+```
+
+The model key is mounted only in the gateway pod. The browser receives neither that key nor any upstream credential.
+
 Then deploy:
 
 ```powershell
@@ -71,6 +83,23 @@ Invoke-RestMethod -Method Post -Uri http://gateway.localhost/api/keys -Headers @
 ## Dashboard (Phase 6)
 
 Open [http://dashboard.localhost](http://dashboard.localhost) and paste an individual gateway API key. The key stays in browser session storage only. Admins can manage upstreams, members, every key, and audit logs. Members can view enabled upstreams/tools and issue or revoke their own keys.
+
+## Chat agent and external clients (Phase 7)
+
+The **Chat** tab sends a message to `POST /api/chat`. The gateway fetches its current enabled tool schemas, sends only those schemas to the configured LLM, and executes requested tools through its own router as the logged-in user. The chat UI shows each call, and the audit log records the same call under that user.
+
+Connect an external MCP client to `http://gateway.localhost/mcp` with the user's individual API key in the `Authorization: Bearer ...` header. It needs no WooCommerce, shipping, calculator, or LLM credential. Tool names are `<server-slug>__<tool-name>`; this also prevents collisions. For example, both sample servers intentionally expose `server_status`, which appears as `shipping__server_status` and `calculator__server_status`.
+
+## Phase 8 integration checks
+
+With the release running, fetch the bootstrap admin key as shown above and run:
+
+```powershell
+$env:ADMIN_KEY = "uk_your_bootstrap_key"
+npm run test:integration
+```
+
+The script creates a separate member and key, verifies tools from all three upstreams (including the collision names), calls a calculator tool, verifies audit attribution, verifies that disabling a server removes its tools, temporarily makes shipping unreachable while confirming calculator still works, and finally revokes the member key. It restores the modified server configuration even if a check fails. It leaves the test member and its revoked key as useful audit evidence.
 
 ## Validation
 

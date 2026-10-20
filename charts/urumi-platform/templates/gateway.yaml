@@ -27,6 +27,8 @@ spec:
             - { name: WOOCOMMERCE_MCP_URL, value: http://{{ .Release.Name }}-woocommerce-mcp:3000/mcp }
             - { name: SHIPPING_MCP_URL, value: http://{{ .Release.Name }}-shipping-mcp:3000/mcp }
             - { name: CALCULATOR_MCP_URL, value: http://{{ .Release.Name }}-calculator-mcp:3000/mcp }
+            - { name: LLM_BASE_URL, value: {{ .Values.llm.baseUrl | quote }} }
+            - { name: LLM_MODEL, value: {{ .Values.llm.model | quote }} }
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: {{ .Release.Name }}-credentials, key: mariadb-password } }
             - name: BOOTSTRAP_ADMIN_KEY
@@ -37,6 +39,8 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ .Release.Name }}-credentials, key: gateway-credential-encryption-key } }
             - name: WOOCOMMERCE_MCP_TOKEN
               valueFrom: { secretKeyRef: { name: {{ .Release.Name }}-credentials, key: mcp-shared-token } }
+            - name: LLM_API_KEY
+              valueFrom: { secretKeyRef: { name: {{ .Release.Name }}-credentials, key: llm-api-key } }
           readinessProbe: { httpGet: { path: /healthz, port: http }, initialDelaySeconds: 5, periodSeconds: 5 }
           livenessProbe: { httpGet: { path: /healthz, port: http }, initialDelaySeconds: 20, periodSeconds: 10 }
           resources: {{- toYaml .Values.gateway.resources | nindent 12 }}

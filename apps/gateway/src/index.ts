@@ -68,6 +68,44 @@ async function call(user: User, fullName: string, args: unknown) {
   catch (error) { await database.query("INSERT INTO gateway_audit_logs (id,user_id,server_slug,tool_name,duration_ms,outcome,detail) VALUES (?,?,?,?,?,'error',?)", [id(), user.id, slug, tool, Date.now() - started, error instanceof Error ? error.message : "unknown error"]); throw error; }
 }
 
+type AgentToolCall = { name: string; arguments: Record<string, unknown> };
+type AgentReply = { message: string; toolCalls: AgentToolCall[] };
+const chatInput = z.object({ message: z.string().trim().min(1).max(8000) });
+
+// The gateway is the only component that executes tools.  The model receives
+// schemas and results, never an upstream URL, credential, or the user's API key.
+async function runChatAgent(user: User, message: string): Promise<AgentReply> {
+  const available = await tools();
+  const baseUrl = process.env.LLM_BASE_URL?.replace(/\/$/, "");
+  const apiKey = process.env.LLM_API_KEY;
+  const model = process.env.LLM_MODEL;
+  if (!baseUrl || !apiKey || !model) throw new Error("Chat is not configured. Set LLM_BASE_URL, LLM_API_KEY, and LLM_MODEL on the gateway.");
+  const definitions = available.map((tool) => ({ type: "function", function: { name: tool.name.replace(/-/g, "_"), description: tool.description, parameters: tool.inputSchema ?? { type: "object", properties: {} } } }));
+  const toolName = new Map(definitions.map((definition, index) => [definition.function.name, available[index].name]));
+  const transcript: unknown[] = [{ role: "system", content: "You are the Urumi dashboard assistant. Use the supplied tools when facts or actions are requested. Never claim a tool action succeeded unless its result says so. Be concise." }, { role: "user", content: message }];
+  const calls: AgentToolCall[] = [];
+  for (let turn = 0; turn < 6; turn++) {
+    const response = await fetch(`${baseUrl}/chat/completions`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model, messages: transcript, tools: definitions, tool_choice: "auto", temperature: 0.2 }) });
+    if (!response.ok) throw new Error(`LLM request failed (${response.status}): ${(await response.text()).slice(0, 300)}`);
+    const payload = await response.json() as { choices?: Array<{ message?: { content?: string | null; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }> };
+    const assistant = payload.choices?.[0]?.message;
+    if (!assistant) throw new Error("LLM returned no completion");
+    if (!assistant.tool_calls?.length) return { message: assistant.content?.trim() || "Done.", toolCalls: calls };
+    transcript.push({ role: "assistant", content: assistant.content ?? null, tool_calls: assistant.tool_calls });
+    for (const requested of assistant.tool_calls) {
+      const routedName = toolName.get(requested.function.name);
+      let args: Record<string, unknown> = {};
+      try { args = JSON.parse(requested.function.arguments || "{}") as Record<string, unknown>; } catch { /* Tool schema will report bad arguments. */ }
+      calls.push({ name: routedName ?? requested.function.name, arguments: args });
+      let content: string;
+      try { content = JSON.stringify(await call(user, routedName ?? requested.function.name, args)); }
+      catch (error) { content = JSON.stringify({ error: error instanceof Error ? error.message : "Tool call failed" }); }
+      transcript.push({ role: "tool", tool_call_id: requested.id, content });
+    }
+  }
+  return { message: "I stopped after six tool rounds to prevent a runaway request.", toolCalls: calls };
+}
+
 const app = express(); app.use(express.json());
 app.get("/healthz", (_req, res) => res.json({ status: "ok" }));
 app.get("/api/me", secure(), (req, res) => res.json((req as Request & { user: User }).user));
@@ -84,6 +122,10 @@ app.post("/api/keys", secure(), async (req, res) => { const requester = (req as 
 app.get("/api/keys", secure(), async (req, res) => { const requester = (req as Request & { user: User }).user; const [result] = await database.query(requester.role === "admin" ? "SELECT k.id,u.email,k.label,k.revoked_at,k.created_at FROM gateway_api_keys k JOIN gateway_users u ON u.id=k.user_id ORDER BY k.created_at DESC" : "SELECT k.id,u.email,k.label,k.revoked_at,k.created_at FROM gateway_api_keys k JOIN gateway_users u ON u.id=k.user_id WHERE k.user_id=? ORDER BY k.created_at DESC", requester.role === "admin" ? [] : [requester.id]); res.json(result); });
 app.delete("/api/keys/:id", secure(), async (req, res) => { const requester = (req as Request & { user: User }).user; const [keys] = await database.query<mysql.RowDataPacket[]>("SELECT user_id FROM gateway_api_keys WHERE id=?", [req.params.id]); if (!keys[0]) return res.status(404).end(); if (keys[0].user_id !== requester.id && requester.role !== "admin") return res.status(403).end(); await database.query("UPDATE gateway_api_keys SET revoked_at=NOW() WHERE id=?", [req.params.id]); res.status(204).end(); });
 app.get("/api/audit-logs", secure(true), async (_req, res) => { const [result] = await database.query("SELECT l.id,u.email,l.server_slug,l.tool_name,l.timestamp,l.duration_ms,l.outcome,l.detail FROM gateway_audit_logs l JOIN gateway_users u ON u.id=l.user_id ORDER BY l.timestamp DESC LIMIT 200"); res.json(result); });
+app.post("/api/chat", secure(), async (req, res) => {
+  try { const body = chatInput.parse(req.body); res.json(await runChatAgent((req as Request & { user: User }).user, body.message)); }
+  catch (error) { res.status(502).json({ error: error instanceof Error ? error.message : "Chat request failed" }); }
+});
 app.post("/mcp", async (req, res) => { const user = await authenticate(req); if (!user) return res.status(401).json({ error: "invalid or revoked API key" }); const server = new Server({ name: "urumi-gateway", version: "0.1.0" }, { capabilities: { tools: {} } }); server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: await tools() })); server.setRequestHandler(CallToolRequestSchema, async (request) => { try { return await call(user, request.params.name, request.params.arguments ?? {}); } catch (error) { return { content: [{ type: "text", text: error instanceof Error ? error.message : "Tool call failed" }], isError: true }; } }); const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined }); res.on("close", () => void transport.close()); await server.connect(transport); await transport.handleRequest(req, res, req.body); });
 
 migrate().then(() => app.listen(3000, "0.0.0.0", () => console.log("Urumi gateway listening on :3000"))).catch((error) => { console.error(error); process.exit(1); });

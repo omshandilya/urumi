@@ -48,6 +48,11 @@ secrets:
   gatewayAdminKey: ""
   gatewayKeyPepper: ""
   gatewayCredentialEncryptionKey: ""
+  llmApiKey: ""
+llm:
+  # OpenAI-compatible endpoint, for example https://api.openai.com/v1.
+  baseUrl: ""
+  model: ""
 bootstrap:
   adminUser: admin
   adminEmail: admin@example.test
