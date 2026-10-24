@@ -50,6 +50,11 @@ kind: Ingress
 metadata: { name: {{ .Release.Name }}-gateway, namespace: {{ .Values.namespace }} }
 spec:
   ingressClassName: nginx
+  {{- with .Values.ingress.tlsSecretName }}
+  tls:
+    - hosts: [{{ $.Values.gateway.host | quote }}]
+      secretName: {{ . }}
+  {{- end }}
   rules:
     - host: {{ .Values.gateway.host }}
       http:

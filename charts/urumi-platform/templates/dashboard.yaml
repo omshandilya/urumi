@@ -28,6 +28,11 @@ kind: Ingress
 metadata: { name: {{ .Release.Name }}-dashboard, namespace: {{ .Values.namespace }} }
 spec:
   ingressClassName: nginx
+  {{- with .Values.ingress.tlsSecretName }}
+  tls:
+    - hosts: [{{ $.Values.dashboard.host | quote }}]
+      secretName: {{ . }}
+  {{- end }}
   rules:
     - host: {{ .Values.dashboard.host }}
       http:

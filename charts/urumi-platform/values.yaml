@@ -1,4 +1,7 @@
 namespace: urumi
+ingress:
+  # Leave empty for local HTTP. Set a cert-manager-created Secret in production.
+  tlsSecretName: ""
 images:
   wordpress: wordpress:6.7-apache
   mariadb: mariadb:11.7

@@ -42,6 +42,11 @@ kind: Ingress
 metadata: { name: {{ .Release.Name }}-store, namespace: {{ .Values.namespace }} }
 spec:
   ingressClassName: nginx
+  {{- with .Values.ingress.tlsSecretName }}
+  tls:
+    - hosts: [{{ $.Values.wordpress.host | quote }}]
+      secretName: {{ . }}
+  {{- end }}
   rules:
     - host: {{ .Values.wordpress.host }}
       http:

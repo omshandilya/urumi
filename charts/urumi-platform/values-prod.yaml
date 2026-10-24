@@ -1,8 +1,23 @@
+# This file contains no credentials. Deploy it alongside a secret values file
+# produced by your secret manager or CI secret store.
+ingress:
+  tlsSecretName: urumi-platform-tls
 wordpress:
   host: store.example.com # replace with your VPS domain
+  storage: 20Gi
 gateway:
   host: gateway.example.com # replace with your VPS domain
 dashboard:
   host: dashboard.example.com # replace with your VPS domain
 images:
+  wordpress: wordpress:6.7-apache
+  mariadb: mariadb:11.7
   woocommerceMcp: ghcr.io/your-github-user/urumi-woocommerce-mcp:0.1.0
+  gateway: ghcr.io/your-github-user/urumi-gateway:0.1.0
+  sampleMcp: ghcr.io/your-github-user/urumi-sample-mcp:0.1.0
+  dashboard: ghcr.io/your-github-user/urumi-dashboard:0.1.0
+mariadb:
+  storage: 20Gi
+llm:
+  baseUrl: https://openrouter.ai/api/v1
+  model: replace-with-a-tool-capable-model

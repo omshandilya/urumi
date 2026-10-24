@@ -1,6 +1,6 @@
 # Urumi MCP Gateway on Kubernetes
 
-This repository implements Phases 1–8: a local Kind cluster, persistent WooCommerce store, custom Streamable HTTP WooCommerce MCP server, a team gateway, an admin/member React dashboard, a tool-using chat agent, and end-to-end access/failure checks.
+This repository implements Phases 1–10: a local Kind cluster, persistent WooCommerce store, custom Streamable HTTP WooCommerce MCP server, a team gateway, an admin/member React dashboard, a tool-using chat agent, end-to-end access/failure checks, and production deployment/submission material.
 
 ## Prerequisites
 
@@ -20,12 +20,18 @@ If you created the cluster before this configuration was added, recreate the loc
 
 ## Build and deploy
 
-Install the MCP service dependencies and build its image:
+Install dependencies and build the four application images:
 
 ```powershell
 npm install
 docker build -t urumi/woocommerce-mcp:dev .\apps\woocommerce-mcp
+docker build -t urumi/gateway:dev .\apps\gateway
+docker build -t urumi/sample-mcp:dev .\apps\sample-mcp
+docker build -t urumi/dashboard:dev .\apps\dashboard
 kind load docker-image urumi/woocommerce-mcp:dev --name urumi
+kind load docker-image urumi/gateway:dev --name urumi
+kind load docker-image urumi/sample-mcp:dev --name urumi
+kind load docker-image urumi/dashboard:dev --name urumi
 Copy-Item .\config\values-secrets.example.yaml .\config\values-secrets.local.yaml
 ```
 
@@ -37,13 +43,13 @@ node -e "console.log('ck_'+require('crypto').randomBytes(24).toString('hex'))"
 node -e "console.log('cs_'+require('crypto').randomBytes(24).toString('hex'))"
 ```
 
-For Phase 7, also configure an OpenAI-compatible chat provider in that private file and `values-local.yaml` (or a private values override):
+For Phase 7, configure an OpenAI-compatible chat provider in that private file and a second private values file such as `config/values-llm.local.yaml`:
 
 ```yaml
 secrets:
   llmApiKey: "your-provider-key"
 llm:
-  baseUrl: "https://api.openai.com/v1"
+  baseUrl: "https://openrouter.ai/api/v1"
   model: "your-tool-capable-model"
 ```
 
@@ -52,13 +58,13 @@ The model key is mounted only in the gateway pod. The browser receives neither t
 Then deploy:
 
 ```powershell
-helm upgrade --install urumi .\charts\urumi-platform -f .\charts\urumi-platform\values-local.yaml -f .\config\values-secrets.local.yaml
+helm upgrade --install urumi .\charts\urumi-platform -f .\charts\urumi-platform\values-local.yaml -f .\config\values-llm.local.yaml -f .\config\values-secrets.local.yaml
 kubectl get pods -n urumi -w
 ```
 
 Visit [http://store.localhost](http://store.localhost), sign in at `/wp-admin` with the configured admin credentials, and create a product or use the storefront checkout. The bootstrap Job installs and activates WooCommerce and creates the REST key supplied in your private values file.
 
-The custom MCP endpoint is internal only: `http://urumi-woocommerce-mcp.urumi.svc.cluster.local:3000/mcp`. It requires `Authorization: Bearer <mcpSharedToken>`. Phase 4 will make this reachable only through the gateway—not from an external MCP client.
+The custom MCP endpoint is internal only: `http://urumi-woocommerce-mcp.urumi.svc.cluster.local:3000/mcp`. It requires `Authorization: Bearer <mcpSharedToken>` and is reachable only from the gateway—not from an external MCP client.
 
 ## Gateway (Phases 4–5)
 
@@ -112,4 +118,14 @@ kubectl logs job/urumi-wordpress-bootstrap -n urumi
 
 ## Production configuration
 
-Use the same chart with `values-prod.yaml`, a production image registry, production ingress domain, appropriate storage class, and an externally managed secret file or secret manager. See the assignment brief for Phase 9 requirements.
+Use the same chart with `values-prod.yaml`, immutable images in a production registry, production ingress domains, TLS, an appropriate storage class, and an externally managed secret file or secret manager. The complete k3s procedure, including atomic releases and rollback, is in [Production deployment](docs/PRODUCTION_DEPLOYMENT.md).
+
+## Submission material and selected Phase 10 enhancements
+
+- [System design and tradeoffs](docs/SYSTEM_DESIGN.md): component responsibilities, routing, failures, tool collisions, and production differences.
+- [Threat model](docs/THREAT_MODEL.md): credential, member-isolation, malicious upstream, SSRF, and TLS risks.
+- [Demo runbook](docs/DEMO_RUNBOOK.md): a repeatable two-user video walkthrough.
+- [Production deployment](docs/PRODUCTION_DEPLOYMENT.md): k3s, TLS, secrets, immutable images, backup, Helm history, atomic upgrades, and rollback.
+- GitHub Actions CI runs the TypeScript/dashboard build and Helm lint for every push and pull request.
+
+Phase 10 selections are production TLS configuration, immutable release-image configuration, CI validation, and documented Helm upgrade/rollback. Multi-store provisioning is intentionally deferred because it is optional and would materially expand the core platform.

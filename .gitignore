@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 values-secrets*.yaml
+config/values-llm.local.yaml
 !config/values-secrets.example.yaml
 *.log
 .DS_Store

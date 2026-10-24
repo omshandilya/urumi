@@ -6,3 +6,8 @@ dashboard:
   host: dashboard.localhost
 images:
   woocommerceMcp: urumi/woocommerce-mcp:dev
+llm:
+  baseUrl: https://openrouter.ai/api/v1
+  # Use an OpenRouter model that supports tool calling. The API key remains in
+  # config/values-secrets.local.yaml and is never committed.
+  model: openai/gpt-4o-mini
